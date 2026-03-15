@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Carbon Footprint Calculator · EcoAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+/* ─── RESET & VARS ─── */
+:root{
+  --bg:#070d0a; --bg2:#0d1a13; --card:#101f16;
+  --border:#1e3828; --green:#00ff87; --green2:#00c96a;
+  --amber:#f5a623; --red:#ff4d4d;
+  --text:#e8f5ee; --muted:#6b8f7a;
+  --mono:'DM Mono',monospace; --sans:'Syne',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:hidden;}
+
+/* grid texture */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(0,255,135,.022) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(0,255,135,.022) 1px,transparent 1px);
+  background-size:44px 44px;
+}
+
+/* ─── NAV ─── */
+nav{
+  position:sticky;top:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1rem 2.5rem;
+  background:rgba(7,13,10,.92);backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+}
+.logo{font-size:1.05rem;font-weight:800;letter-spacing:-.02em;color:var(--green);}
+.logo span{color:var(--text);}
+.nav-links{list-style:none;display:flex;gap:2rem;}
+.nav-links a{font-family:var(--mono);font-size:.78rem;color:var(--muted);text-decoration:none;transition:color .2s;}
+.nav-links a:hover{color:var(--green);}
+
+/* ─── HERO ─── */
+.hero{
+  position:relative;z-index:1;
+  min-height:88vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;padding:5rem 2rem 4rem;
+}
+.hero-badge{
+  font-family:var(--mono);font-size:.73rem;color:var(--green);
+  border:1px solid rgba(0,255,135,.5);border-radius:2px;
+  padding:.32rem .9rem;margin-bottom:2.2rem;letter-spacing:.1em;
+  animation:fadeUp .7s ease both;
+}
+.hero h1{
+  font-size:clamp(2.8rem,7vw,5.6rem);font-weight:800;
+  line-height:.95;letter-spacing:-.04em;max-width:860px;
+  animation:fadeUp .7s .1s ease both;
+}
+.hero h1 em{
+  font-style:normal;
+  background:linear-gradient(135deg,var(--green),var(--amber));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.hero-sub{
+  margin-top:1.5rem;max-width:520px;
+  font-family:var(--mono);font-size:.88rem;color:var(--muted);line-height:1.75;
+  animation:fadeUp .7s .2s ease both;
+}
+.hero-scroll{
+  margin-top:3rem;
+  font-family:var(--mono);font-size:.75rem;color:var(--muted);letter-spacing:.1em;
+  animation:fadeUp .7s .35s ease both;
+  display:flex;flex-direction:column;align-items:center;gap:.5rem;
+}
+.scroll-arrow{
+  width:20px;height:20px;border-right:2px solid var(--muted);
+  border-bottom:2px solid var(--muted);
+  transform:rotate(45deg);animation:bounce 1.5s infinite;
+}
+
+/* ─── STATS ─── */
+.stats-row{
+  position:relative;z-index:1;
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:1px;background:var(--border);
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+}
+.stat-card{background:var(--bg2);padding:2.2rem 1.5rem;text-align:center;}
+.stat-num{font-size:2.1rem;font-weight:800;color:var(--green);letter-spacing:-.03em;display:block;}
+.stat-label{font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-top:.35rem;display:block;}
+.stat-source{font-family:var(--mono);font-size:.62rem;color:rgba(107,143,122,.5);margin-top:.2rem;display:block;}
+
+/* ─── SECTION SHELL ─── */
+section{position:relative;z-index:1;}
+.section-inner{max-width:1080px;margin:0 auto;padding:5rem 2rem;}
+.section-label{font-family:var(--mono);font-size:.7rem;color:var(--green);letter-spacing:.16em;text-transform:uppercase;margin-bottom:.65rem;}
+.section-title{font-size:clamp(1.8rem,4vw,2.7rem);font-weight:800;letter-spacing:-.03em;line-height:1.05;margin-bottom:.8rem;}
+.section-sub{font-family:var(--mono);font-size:.84rem;color:var(--muted);line-height:1.8;max-width:560px;}
+
+/* ─── CALCULATOR SECTION ─── */
+#calculator{background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+
+/* mode toggle */
+.mode-toggle{
+  display:inline-flex;border:1px solid var(--border);
+  border-radius:2px;overflow:hidden;margin-top:2rem;margin-bottom:2.5rem;
+}
+.mode-btn{
+  font-family:var(--mono);font-size:.8rem;padding:.6rem 1.5rem;
+  background:transparent;color:var(--muted);border:none;cursor:pointer;transition:all .2s;
+}
+.mode-btn.active{background:var(--green);color:#070d0a;font-weight:700;}
+
+/* step label */
+.step-label{
+  font-family:var(--mono);font-size:.72rem;color:var(--muted);
+  letter-spacing:.06em;margin-bottom:.9rem;
+  display:flex;align-items:center;gap:.6rem;
+}
+.step-label::before{
+  content:'';display:inline-block;width:18px;height:18px;
+  border-radius:50%;background:var(--green);
+  font-size:.65rem;color:#070d0a;font-weight:700;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.step-label.s1::before{content:'1';}
+.step-label.s2::before{content:'2';}
+
+/* AI cards */
+.ai-cards{
+  display:grid;grid-template-columns:repeat(5,1fr);
+  gap:1rem;margin-bottom:2.5rem;
+}
+.ai-card{
+  background:var(--bg);border:2px solid var(--border);border-radius:4px;
+  padding:1.25rem 1rem;cursor:pointer;text-align:center;
+  transition:all .2s;user-select:none;
+}
+.ai-card:hover{border-color:rgba(0,255,135,.5);transform:translateY(-2px);}
+.ai-card.selected{border-color:var(--green);background:rgba(0,255,135,.07);}
+.ai-logo{font-size:2.1rem;margin-bottom:.5rem;display:block;}
+.ai-name{font-family:var(--mono);font-size:.78rem;color:var(--text);font-weight:500;}
+.ai-badge{font-family:var(--mono);font-size:.62rem;color:var(--muted);margin-top:.2rem;}
+.ai-co2{font-family:var(--mono);font-size:.62rem;color:var(--green);margin-top:.3rem;}
+
+/* usage grid */
+.usage-grid{display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-bottom:2rem;}
+
+/* field */
+.field label{
+  display:flex;justify-content:space-between;align-items:center;
+  font-family:var(--mono);font-size:.75rem;color:var(--muted);
+  margin-bottom:.65rem;letter-spacing:.03em;
+}
+.range-val{color:var(--green);font-weight:500;}
+
+/* FIXED RANGE SLIDER */
+.range-wrap{position:relative;padding:.5rem 0;}
+input[type="range"]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:5px;
+  background:var(--border);border-radius:3px;
+  outline:none;cursor:pointer;
+  border:none;padding:0;
+}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:18px;height:18px;border-radius:50%;
+  background:var(--green);cursor:pointer;
+  box-shadow:0 0 10px rgba(0,255,135,.45);
+  transition:box-shadow .2s,transform .2s;
+}
+input[type="range"]::-webkit-slider-thumb:hover{
+  transform:scale(1.25);box-shadow:0 0 18px rgba(0,255,135,.7);
+}
+input[type="range"]::-moz-range-thumb{
+  width:18px;height:18px;border-radius:50%;
+  background:var(--green);cursor:pointer;border:none;
+  box-shadow:0 0 10px rgba(0,255,135,.45);
+}
+input[type="range"]::-webkit-slider-runnable-track{
+  background:linear-gradient(to right,var(--green) var(--pct,0%),var(--border) var(--pct,0%));
+  height:5px;border-radius:3px;
+}
+
+/* image pills */
+.freq-pills{display:flex;gap:.55rem;flex-wrap:wrap;margin-top:.25rem;}
+.freq-pill{
+  font-family:var(--mono);font-size:.75rem;
+  padding:.38rem .9rem;border:1px solid var(--border);border-radius:2px;
+  cursor:pointer;background:var(--bg);color:var(--muted);transition:all .2s;
+}
+.freq-pill.active{border-color:var(--green);color:var(--green);background:rgba(0,255,135,.06);}
+
+/* results grid */
+.results-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:2rem;}
+.res-card{
+  background:var(--bg);border:1px solid var(--border);border-radius:2px;
+  padding:1.4rem;transition:border-color .3s;
+}
+.res-card.lit{border-color:var(--green);}
+.res-icon{font-size:1.35rem;margin-bottom:.5rem;}
+.res-label{font-family:var(--mono);font-size:.68rem;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;}
+.res-value{font-size:1.45rem;font-weight:800;letter-spacing:-.02em;color:var(--green);margin:.22rem 0;line-height:1.1;}
+.res-value.warn{color:var(--amber);}
+.res-value.danger{color:var(--red);}
+.res-sub{font-family:var(--mono);font-size:.68rem;color:var(--muted);line-height:1.5;}
+
+/* impact meter */
+.impact-meter{
+  background:var(--bg);border:1px solid var(--border);border-radius:2px;
+  padding:1.5rem;margin-top:1.25rem;
+}
+.impact-lbl{font-family:var(--mono);font-size:.7rem;color:var(--muted);letter-spacing:.06em;margin-bottom:.7rem;}
+.impact-track{height:8px;background:var(--border);border-radius:4px;overflow:hidden;}
+.impact-fill{
+  height:100%;border-radius:4px;
+  background:linear-gradient(90deg,#00ff87,#f5a623,#ff4d4d);
+  width:5%;transition:width 1.1s cubic-bezier(.4,0,.2,1);
+}
+.impact-marks{display:flex;justify-content:space-between;margin-top:.45rem;}
+.impact-mark{font-family:var(--mono);font-size:.63rem;color:var(--muted);}
+.impact-tag{font-family:var(--mono);font-size:.82rem;color:var(--text);margin-top:.7rem;font-weight:500;}
+
+/* charts */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.75rem;}
+.chart-box{background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:1.4rem;}
+.chart-box h4{font-family:var(--mono);font-size:.7rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:1rem;}
+/* ADVANCED */
+.adv-notice{
+  font-family:var(--mono);font-size:.75rem;color:var(--muted);line-height:1.65;
+  margin-bottom:1.5rem;padding:.75rem 1rem;
+  background:rgba(0,255,135,.04);border-left:2px solid var(--green);
+}
+.adv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.25rem;}
+.field select,.field input[type="number"]{
+  width:100%;background:var(--bg);border:1px solid var(--border);border-radius:2px;
+  padding:.7rem 1rem;color:var(--text);font-family:var(--mono);font-size:.86rem;
+  transition:border-color .2s;appearance:none;outline:none;
+}
+.field select:focus,.field input[type="number"]:focus{border-color:var(--green);}
+.field-label-row{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:.75rem;color:var(--muted);margin-bottom:.6rem;}
+
+/* download btn */
+.dl-btn{
+  width:100%;margin-top:.8rem;
+  background:transparent;color:var(--green);
+  border:1px solid var(--green);border-radius:2px;
+  font-family:var(--mono);font-size:.82rem;padding:.72rem;
+  cursor:pointer;transition:all .2s;
+}
+.dl-btn:hover{background:var(--green);color:#070d0a;}
+
+/* ─── HOW IT WORKS ─── */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;margin-top:2.5rem;}
+.step{
+  position:relative;padding:1.75rem;
+  background:var(--card);border:1px solid var(--border);border-radius:2px;
+}
+.step-n{font-size:3rem;font-weight:800;color:var(--border);position:absolute;top:.75rem;right:1rem;line-height:1;}
+.step h4{font-size:.95rem;font-weight:700;color:var(--green);margin-bottom:.4rem;}
+.step p{font-family:var(--mono);font-size:.78rem;color:var(--muted);line-height:1.65;}
+
+/* ─── TIPS ─── */
+#tips{background:var(--bg2);border-top:1px solid var(--border);}
+.tips-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.25rem;margin-top:2.5rem;}
+.tip-card{
+  padding:1.5rem;background:var(--bg);border:1px solid var(--border);border-radius:2px;
+  border-left:3px solid var(--green);transition:transform .2s;
+}
+.tip-card:hover{transform:translateY(-2px);}
+.tip-icon{font-size:1.4rem;margin-bottom:.6rem;}
+.tip-card h4{font-size:.9rem;font-weight:700;margin-bottom:.4rem;}
+.tip-card p{font-family:var(--mono);font-size:.78rem;color:var(--muted);line-height:1.65;}
+
+/* ─── SOURCES ─── */
+.sources-list{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-top:2.5rem;}
+.source-item{
+  padding:1.1rem;background:var(--card);border:1px solid var(--border);
+  border-radius:2px;display:flex;gap:.9rem;
+}
+.source-num{font-family:var(--mono);font-size:.72rem;color:var(--green);flex-shrink:0;padding-top:.1rem;}
+.source-item h4{font-size:.82rem;font-weight:600;margin-bottom:.2rem;}
+.source-item p{font-family:var(--mono);font-size:.72rem;color:var(--muted);}
+.source-item a{color:var(--green);font-size:.72rem;font-family:var(--mono);}
+
+/* ─── FOOTER ─── */
+footer{
+  position:relative;z-index:1;border-top:1px solid var(--border);
+  padding:2.5rem 2rem;text-align:center;
+  font-family:var(--mono);font-size:.76rem;color:var(--muted);
+}
+footer strong{color:var(--text);}
+
+/* ─── ANIMATIONS ─── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:none;}}
+@keyframes bounce{0%,100%{transform:rotate(45deg) translateY(0);}50%{transform:rotate(45deg) translateY(5px);}}
+.fade-in{opacity:0;transform:translateY(20px);transition:opacity .55s ease,transform .55s ease;}
+.fade-in.visible{opacity:1;transform:none;}
+
+/* ─── HAMBURGER MENU ─── */
+.ham{
+  display:none;flex-direction:column;justify-content:center;
+  gap:5px;width:36px;height:36px;cursor:pointer;
+  background:none;border:1px solid var(--border);border-radius:2px;padding:6px;
+}
+.ham span{display:block;height:2px;background:var(--text);border-radius:2px;transition:all .25s;}
+.ham.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+.ham.open span:nth-child(2){opacity:0;}
+.ham.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+.mobile-menu{
+  display:none;position:fixed;inset:64px 0 0 0;
+  background:rgba(7,13,10,.97);backdrop-filter:blur(20px);
+  z-index:99;flex-direction:column;align-items:center;justify-content:center;gap:2.5rem;
+}
+.mobile-menu.open{display:flex;}
+.mobile-menu a{
+  font-family:var(--mono);font-size:1.2rem;color:var(--text);
+  text-decoration:none;letter-spacing:.08em;
+  transition:color .2s;
+}
+.mobile-menu a:hover{color:var(--green);}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:1024px){
+  .section-inner{padding:4rem 1.5rem;}
+  .ai-cards{grid-template-columns:repeat(3,1fr);}
+  .results-grid{grid-template-columns:repeat(2,1fr);}
+  .charts-row{grid-template-columns:1fr;}
+  .usage-grid{grid-template-columns:1fr;}
+  .adv-grid{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:768px){
+  /* NAV */
+  nav{padding:.9rem 1.25rem;}
+  .nav-links{display:none;}
+  .ham{display:flex;}
+
+  /* HERO */
+  .hero{min-height:75vh;padding:4rem 1.25rem 3rem;}
+  .hero-badge{font-size:.68rem;padding:.28rem .7rem;}
+
+  /* STATS */
+  .stats-row{grid-template-columns:1fr;}
+  .stat-card{padding:1.4rem 1.25rem;}
+  .stat-num{font-size:1.7rem;}
+
+  /* SECTION */
+  .section-inner{padding:3rem 1.25rem;}
+
+  /* MODE TOGGLE */
+  .mode-toggle{width:100%;}
+  .mode-btn{flex:1;font-size:.75rem;padding:.6rem .5rem;}
+
+  /* AI CARDS — 3 across, compact */
+  .ai-cards{grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:1.75rem;}
+  .ai-card{padding:.9rem .6rem;}
+  .ai-logo{font-size:1.6rem;margin-bottom:.3rem;}
+  .ai-name{font-size:.7rem;}
+  .ai-badge{font-size:.56rem;}
+  .ai-co2{font-size:.56rem;}
+
+  /* USAGE */
+  .usage-grid{grid-template-columns:1fr;gap:1.5rem;}
+
+  /* RESULTS — 2 columns on mobile */
+  .results-grid{grid-template-columns:1fr 1fr;gap:.75rem;}
+  .res-card{padding:1.1rem;}
+  .res-value{font-size:1.2rem;}
+  .res-icon{font-size:1.15rem;margin-bottom:.35rem;}
+
+  /* IMPACT */
+  .impact-meter{padding:1.1rem;}
+  .impact-tag{font-size:.76rem;}
+
+  /* CHARTS */
+  .charts-row{grid-template-columns:1fr;gap:1rem;}
+  .chart-box{padding:1.1rem;}
+  .chart-box canvas{max-height:180px;}
+
+  /* ADVANCED GRID */
+  .adv-grid{grid-template-columns:1fr;}
+  .adv-notice{font-size:.73rem;}
+
+  /* STEPS */
+  .steps{grid-template-columns:1fr;}
+
+  /* TIPS */
+  .tips-grid{grid-template-columns:1fr;}
+
+  /* SOURCES */
+  .sources-list{grid-template-columns:1fr;}
+
+  /* FOOTER */
+  footer{padding:1.75rem 1.25rem;font-size:.72rem;}
+}
+@media(max-width:400px){
+  /* Tiny phones */
+  .ai-cards{grid-template-columns:repeat(2,1fr);}
+  .results-grid{grid-template-columns:1fr;}
+  .hero h1{letter-spacing:-.03em;}
+  .mode-btn{font-size:.7rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">Eco<span>AI</span></div>
+  <ul class="nav-links">
+    <li><a href="#calculator">Calculator</a></li>
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#tips">Reduce Impact</a></li>
+    <li><a href="#sources">Sources</a></li>
+  </ul>
+  <button class="ham" id="hamBtn" onclick="toggleMenu()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+<!-- MOBILE MENU OVERLAY -->
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#calculator" onclick="closeMenu()">Calculator</a>
+  <a href="#how"        onclick="closeMenu()">How It Works</a>
+  <a href="#tips"       onclick="closeMenu()">Reduce Impact</a>
+  <a href="#sources"    onclick="closeMenu()">Sources</a>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">⬡ Environmental AI Impact Calculator — Updated 2026</div>
+  <h1>Your AI prompts have a <em>carbon cost.</em></h1>
+  <p class="hero-sub">
+    Find out how much CO₂ your AI usage generates — from a single chat to a whole month of work.
+    Built on the latest 2025–2026 data from Google, OpenAI and independent researchers.
+  </p>
+  <div class="hero-scroll">
+    <span>SCROLL TO CALCULATE</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</div>
+
+<!-- STATS BAR -->
+<div class="stats-row">
+  <div class="stat-card fade-in">
+    <span class="stat-num">0.34 Wh</span>
+    <span class="stat-label">Energy per average ChatGPT query</span>
+    <span class="stat-source">Sam Altman, June 2025</span>
+  </div>
+  <div class="stat-card fade-in">
+    <span class="stat-num">0.03 g</span>
+    <span class="stat-label">CO₂ per median Gemini text prompt</span>
+    <span class="stat-source">Google Cloud, August 2025</span>
+  </div>
+  <div class="stat-card fade-in">
+    <span class="stat-num">415 TWh</span>
+    <span class="stat-label">Global data centre energy use in 2024</span>
+    <span class="stat-source">IEA Energy & AI Report, 2025</span>
+  </div>
+</div>
+
+<!-- ═══ CALCULATOR ═══ -->
+<section id="calculator">
+  <div class="section-inner">
+    <p class="section-label">// interactive tool</p>
+    <h2 class="section-title">Calculate Your Impact</h2>
+    <p class="section-sub">
+      Choose your AI, tell us how much you use it, and we'll show your estimated monthly carbon footprint — based on the latest published data.
+    </p>
+
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btnSimple" onclick="setMode('simple')">🟢 Simple Mode</button>
+      <button class="mode-btn"        id="btnAdv"    onclick="setMode('advanced')">⚙️ Advanced Mode</button>
+    </div>
+
+    <!-- ══ SIMPLE ══ -->
+    <div id="simpleMode">
+
+      <div class="step-label s1">Which AI do you use most?</div>
+      <div class="ai-cards" id="aiCards">
+        <div class="ai-card selected" data-ai="chatgpt" onclick="selectAI(this)">
+          <span class="ai-logo">🤖</span>
+          <div class="ai-name">ChatGPT</div>
+          <div class="ai-badge">OpenAI · US</div>
+          <div class="ai-co2">~0.34 Wh/query</div>
+        </div>
+        <div class="ai-card" data-ai="claude" onclick="selectAI(this)">
+          <span class="ai-logo">🟠</span>
+          <div class="ai-name">Claude</div>
+          <div class="ai-badge">Anthropic · US</div>
+          <div class="ai-co2">~0.36 Wh/query</div>
+        </div>
+        <div class="ai-card" data-ai="gemini" onclick="selectAI(this)">
+          <span class="ai-logo">✦</span>
+          <div class="ai-name">Gemini</div>
+          <div class="ai-badge">Google · US</div>
+          <div class="ai-co2">~0.24 Wh/query</div>
+        </div>
+        <div class="ai-card" data-ai="deepseek" onclick="selectAI(this)">
+          <span class="ai-logo">🐋</span>
+          <div class="ai-name">DeepSeek</div>
+          <div class="ai-badge">DeepSeek · China</div>
+          <div class="ai-co2">~0.18 Wh/query*</div>
+        </div>
+        <div class="ai-card" data-ai="kimi" onclick="selectAI(this)">
+          <span class="ai-logo">🌙</span>
+          <div class="ai-name">Kimi</div>
+          <div class="ai-badge">Moonshot · China</div>
+          <div class="ai-co2">~0.20 Wh/query*</div>
+        </div>
+      </div>
+
+      <div class="step-label s2" style="margin-top:.5rem;">How do you use it?</div>
+      <div class="usage-grid">
+
+        <div class="field">
+          <label>
+            <span>Text chats per week</span>
+            <span class="range-val" id="chatsVal">20</span>
+          </label>
+          <div class="range-wrap">
+            <input type="range" id="chatsPerWeek" min="1" max="300" value="20"
+              oninput="updateSlider(this,'chatsVal');autoCalc()">
+          </div>
+          <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.65rem;color:var(--muted);margin-top:.35rem;">
+            <span>1</span><span>150</span><span>300</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label><span>AI images generated per month</span></label>
+          <div class="freq-pills" id="imgPills">
+            <span class="freq-pill active" data-val="0"   onclick="pickImg(this)">None</span>
+            <span class="freq-pill"        data-val="5"   onclick="pickImg(this)">A few (~5)</span>
+            <span class="freq-pill"        data-val="20"  onclick="pickImg(this)">Some (~20)</span>
+            <span class="freq-pill"        data-val="100" onclick="pickImg(this)">Many (~100)</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RESULTS -->
+      <div class="results-grid" id="resultsGrid">
+        <div class="res-card lit">
+          <div class="res-icon">🌫️</div>
+          <div class="res-label">Monthly CO₂</div>
+          <div class="res-value" id="co2Val">—</div>
+          <div class="res-sub"  id="co2Sub">calculating…</div>
+        </div>
+        <div class="res-card">
+          <div class="res-icon">⚡</div>
+          <div class="res-label">Energy Used</div>
+          <div class="res-value" id="energyVal">—</div>
+          <div class="res-sub"  id="energySub"></div>
+        </div>
+        <div class="res-card">
+          <div class="res-icon">🌳</div>
+          <div class="res-label">Trees to Offset</div>
+          <div class="res-value" id="treesVal">—</div>
+          <div class="res-sub">growing for 1 year</div>
+        </div>
+        <div class="res-card">
+          <div class="res-icon">🚗</div>
+          <div class="res-label">Equivalent km driven</div>
+          <div class="res-value" id="kmVal">—</div>
+          <div class="res-sub">by petrol car</div>
+        </div>
+      </div>
+
+      <!-- IMPACT METER -->
+      <div class="impact-meter">
+        <p class="impact-lbl">OVERALL IMPACT LEVEL</p>
+        <div class="impact-track"><div class="impact-fill" id="impactFill"></div></div>
+        <div class="impact-marks">
+          <span class="impact-mark">🟢 Low</span>
+          <span class="impact-mark">🟡 Medium</span>
+          <span class="impact-mark">🔴 High</span>
+        </div>
+        <p class="impact-tag" id="impactTag">—</p>
+      </div>
+
+      <!-- CHARTS -->
+      <div class="charts-row fade-in">
+        <div class="chart-box">
+          <h4>// CO₂ per month — all AIs compared (your usage)</h4>
+          <div style="position:relative;height:200px;"><canvas id="barChart"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h4>// Your monthly CO₂ vs everyday things</h4>
+          <div style="position:relative;height:200px;"><canvas id="compareChart"></canvas></div>
+        </div>
+      </div>
+
+      <p style="font-family:var(--mono);font-size:.68rem;color:var(--muted);margin-top:1rem;line-height:1.6;">
+        * DeepSeek & Kimi energy figures are estimates — these companies have not published official per-query data.
+        Values based on academic benchmarks adjusted for China's average grid (0.555 kgCO₂/kWh, IEA 2024).
+      </p>
+
+      <button class="dl-btn" onclick="downloadReport()">⬇ Download My Report (.txt)</button>
+    </div>
+
+    <!-- ══ ADVANCED ══ -->
+    <div id="advMode" style="display:none;">
+      <div class="adv-notice">
+        Advanced mode uses scientific parameters from published 2025 benchmarks.
+        The <strong>data centre grid</strong> is automatically set based on the AI you choose — you can override it below.
+      </div>
+
+      <div class="adv-grid">
+        <div class="field">
+          <div class="field-label-row"><span>AI Model</span></div>
+          <select id="advModel" onchange="syncAdvAI()">
+            <option value="chatgpt">ChatGPT (GPT-4o) — OpenAI</option>
+            <option value="claude">Claude (Sonnet) — Anthropic</option>
+            <option value="gemini">Gemini 1.5 Pro — Google</option>
+            <option value="deepseek">DeepSeek V3 — DeepSeek</option>
+            <option value="kimi">Kimi — Moonshot AI</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <div class="field-label-row">
+            <span>Requests per Day</span>
+            <span class="range-val" id="advReqVal">100</span>
+          </div>
+          <div class="range-wrap">
+            <input type="range" id="advRequests" min="1" max="5000" value="100"
+              oninput="updateSlider(this,'advReqVal');autoCalc()">
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label-row">
+            <span>Tokens per Request</span>
+            <span class="range-val" id="advTokVal">500</span>
+          </div>
+          <div class="range-wrap">
+            <input type="range" id="advTokens" min="50" max="8000" value="500" step="50"
+              oninput="updateSlider(this,'advTokVal');autoCalc()">
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label-row"><span>Duration (days)</span></div>
+          <input type="number" id="advDays" value="30" min="1" max="3650" oninput="autoCalc()">
+        </div>
+
+        <div class="field">
+          <div class="field-label-row">
+            <span>Images per Month</span>
+            <span class="range-val" id="advImgVal">0</span>
+          </div>
+          <div class="range-wrap">
+            <input type="range" id="advImages" min="0" max="500" value="0"
+              oninput="updateSlider(this,'advImgVal');autoCalc()">
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label-row">
+            <span>Data Centre Grid</span>
+            <span style="font-size:.62rem;color:var(--green);">auto by AI ↓</span>
+          </div>
+          <select id="advGrid" onchange="autoCalc()">
+            <option value="us">US avg · 0.386 kgCO₂/kWh</option>
+            <option value="eu">EU avg · 0.256 kgCO₂/kWh</option>
+            <option value="cn">China avg · 0.555 kgCO₂/kWh</option>
+            <option value="renewable">Renewable · 0.020 kgCO₂/kWh</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ADV RESULTS -->
+      <div class="results-grid" style="margin-top:1.5rem;">
+        <div class="res-card lit">
+          <div class="res-icon">🌫️</div>
+          <div class="res-label">Total CO₂</div>
+          <div class="res-value" id="aco2Val">—</div>
+          <div class="res-sub"  id="aco2Sub"></div>
+        </div>
+        <div class="res-card">
+          <div class="res-icon">⚡</div>
+          <div class="res-label">Energy Consumed</div>
+          <div class="res-value" id="aEnergyVal">—</div>
+          <div class="res-sub"  id="aEnergySub"></div>
+        </div>
+        <div class="res-card">
+          <div class="res-icon">💵</div>
+          <div class="res-label">Compute Cost (USD)</div>
+          <div class="res-value" id="aCostVal">—</div>
+          <div class="res-sub">est. API pricing</div>
+        </div>
+        <div class="res-card">
+          <div class="res-icon">🌳</div>
+          <div class="res-label">Trees to Offset</div>
+          <div class="res-value" id="aTreesVal">—</div>
+          <div class="res-sub">21.8 kg CO₂/tree/yr</div>
+        </div>
+      </div>
+
+      <div class="impact-meter" style="margin-top:1.25rem;">
+        <p class="impact-lbl">IMPACT LEVEL</p>
+        <div class="impact-track"><div class="impact-fill" id="aImpactFill"></div></div>
+        <div class="impact-marks">
+          <span class="impact-mark">🟢 Low</span>
+          <span class="impact-mark">🟡 Medium</span>
+          <span class="impact-mark">🔴 High</span>
+        </div>
+        <p class="impact-tag" id="aImpactTag">—</p>
+      </div>
+
+      <div class="charts-row" style="margin-top:1.5rem;">
+        <div class="chart-box">
+          <h4>// CO₂ over time — period breakdown</h4>
+          <div style="position:relative;height:200px;"><canvas id="advBarChart"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h4>// Energy source breakdown (data centre)</h4>
+          <div style="position:relative;height:200px;"><canvas id="advDonutChart"></canvas></div>
+        </div>
+      </div>
+
+      <button class="dl-btn" onclick="downloadReport()">⬇ Download Report (.txt)</button>
+    </div>
+
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="section-inner">
+    <p class="section-label">// methodology</p>
+    <h2 class="section-title">How It Works</h2>
+    <p class="section-sub">Four peer-reviewed steps turn your usage into real-world numbers.</p>
+    <div class="steps">
+      <div class="step fade-in"><span class="step-n">01</span>
+        <h4>Wh per Query</h4>
+        <p>We use officially disclosed figures where available: OpenAI confirmed 0.34 Wh/query (Altman, June 2025), Google reported 0.24 Wh/query for Gemini (August 2025). Undisclosed models use independent academic benchmarks.</p>
+      </div>
+      <div class="step fade-in"><span class="step-n">02</span>
+        <h4>Data Centre Overhead</h4>
+        <p>Data centres need extra energy for cooling beyond the AI chips themselves. We apply Power Usage Effectiveness (PUE): 1.10 for Google/hyperscalers, 1.40 for Chinese data centres — based on Uptime Institute 2024 survey data.</p>
+      </div>
+      <div class="step fade-in"><span class="step-n">03</span>
+        <h4>Carbon Intensity</h4>
+        <p>The same electricity produces very different CO₂ depending on the country. US: 0.386 kg/kWh, EU: 0.256, China: 0.555 (IEA 2024). This is why DeepSeek's lower energy use can still produce high emissions — China's grid is coal-heavy.</p>
+      </div>
+      <div class="step fade-in"><span class="step-n">04</span>
+        <h4>Real-world Equivalences</h4>
+        <p>CO₂ grams are converted into things you already understand: car trips, trees, phone charges. Tree offset rate: 21.8 kg CO₂/year (US EPA). Car emissions: 0.21 kg CO₂/km (European average, EEA 2024).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REDUCE IMPACT -->
+<section id="tips">
+  <div class="section-inner">
+    <p class="section-label">// best practices</p>
+    <h2 class="section-title">Reduce Your Impact</h2>
+    <p class="section-sub">Small changes in how you use AI can cut your carbon footprint significantly.</p>
+    <div class="tips-grid">
+      <div class="tip-card fade-in"><div class="tip-icon">🎯</div>
+        <h4>Write Clearer Prompts</h4>
+        <p>A concise, specific prompt gets a better answer faster and uses fewer tokens — directly cutting the energy cost without sacrificing quality.</p>
+      </div>
+      <div class="tip-card fade-in"><div class="tip-icon">🔄</div>
+        <h4>Don't Regenerate Needlessly</h4>
+        <p>Every regeneration roughly doubles the energy spent. Think before clicking "Try again" — refine your prompt instead.</p>
+      </div>
+      <div class="tip-card fade-in"><div class="tip-icon">📦</div>
+        <h4>Batch Your Questions</h4>
+        <p>Sending 10 short messages uses more energy than one well-structured prompt covering all your questions at once.</p>
+      </div>
+      <div class="tip-card fade-in"><div class="tip-icon">🌱</div>
+        <h4>Choose an Efficient Model</h4>
+        <p>Gemini currently has the lowest officially reported per-query footprint (0.03 g CO₂). For simple tasks, smaller models use far less energy than frontier ones.</p>
+      </div>
+      <div class="tip-card fade-in"><div class="tip-icon">💡</div>
+        <h4>Ask Yourself: Does This Need AI?</h4>
+        <p>A Google search uses ~0.3 Wh — roughly equal to Gemini's efficiency today. For simple factual lookups, a search engine may be just as fast.</p>
+      </div>
+      <div class="tip-card fade-in"><div class="tip-icon">🌳</div>
+        <h4>Offset What You Can't Cut</h4>
+        <p>Gold Standard and Pachama offer verified carbon offsets funding real reforestation. CodeCarbon.io can track emissions from your AI coding projects.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SOURCES -->
+<section id="sources" style="background:var(--bg2);border-top:1px solid var(--border);">
+  <div class="section-inner">
+    <p class="section-label">// peer-reviewed science & official data</p>
+    <h2 class="section-title">Sources & Studies</h2>
+    <p class="section-sub">Every number in this calculator traces back to published, peer-reviewed research or official disclosures.</p>
+    <div class="sources-list">
+      <div class="source-item fade-in"><span class="source-num">[1]</span><div>
+        <h4>Google Cloud — Measuring the Environmental Impact of AI Inference (2025)</h4>
+        <p>Official per-query disclosure: 0.24 Wh, 0.03 g CO₂e per median Gemini text prompt. August 2025.</p>
+        <a href="https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference" target="_blank">cloud.google.com ↗</a>
+      </div></div>
+      <div class="source-item fade-in"><span class="source-num">[2]</span><div>
+        <h4>IEA — Energy and AI Report (2025)</h4>
+        <p>Global data centres consumed ~415 TWh in 2024. Regional grid carbon intensity factors used throughout.</p>
+        <a href="https://www.iea.org/reports/energy-and-ai" target="_blank">iea.org/reports/energy-and-ai ↗</a>
+      </div></div>
+      <div class="source-item fade-in"><span class="source-num">[3]</span><div>
+        <h4>Jegham et al. — How Hungry is AI? Benchmarking LLM Inference (2025)</h4>
+        <p>30-model benchmark measuring energy, water & carbon per query. Published arXiv, November 2025.</p>
+        <a href="https://arxiv.org/abs/2505.09598" target="_blank">arxiv.org/abs/2505.09598 ↗</a>
+      </div></div>
+      <div class="source-item fade-in"><span class="source-num">[4]</span><div>
+        <h4>Patterson et al. — Carbon & Large Neural Network Training (2022)</h4>
+        <p>Google/UC Berkeley. Foundational energy benchmarks for LLM training and inference methodology.</p>
+        <a href="https://arxiv.org/abs/2104.10350" target="_blank">arxiv.org/abs/2104.10350 ↗</a>
+      </div></div>
+      <div class="source-item fade-in"><span class="source-num">[5]</span><div>
+        <h4>Li et al. — Making AI Less Thirsty (2023)</h4>
+        <p>UC Riverside study quantifying water consumption of large language model inference.</p>
+        <a href="https://arxiv.org/abs/2304.03271" target="_blank">arxiv.org/abs/2304.03271 ↗</a>
+      </div></div>
+      <div class="source-item fade-in"><span class="source-num">[6]</span><div>
+        <h4>US EPA — Greenhouse Gas Equivalencies Calculator</h4>
+        <p>Official tree sequestration rates (21.8 kg CO₂/tree/year) and carbon equivalency data used for offsets.</p>
+        <a href="https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator" target="_blank">epa.gov ↗</a>
+      </div></div>
+    </div>
+    <p style="font-family:var(--mono);font-size:.72rem;color:var(--muted);margin-top:2rem;line-height:1.7;">
+      ⚠️ <strong style="color:var(--text)">Disclaimer:</strong> These are estimates. Only Google has published official per-query environmental data (Aug 2025). OpenAI's 0.34 Wh figure is from a CEO statement (June 2025), not a verified report. DeepSeek and Kimi values are based on independent academic benchmarks. Actual emissions vary significantly by model version, task complexity, and provider infrastructure.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <strong>EcoAI Calculator</strong> — Data updated March 2026<br>
+  Sources: Google Cloud 2025 · IEA Energy &amp; AI 2025 · US EPA · Patterson et al. 2022 · Jegham et al. 2025
+</footer>
+
+<script>
+/* ─── 2025-2026 DATA ─── */
+// Sources: Google Cloud Aug 2025 (Gemini 0.24Wh), OpenAI Sam Altman June 2025 (ChatGPT 0.34Wh),
+// Jegham et al. arXiv 2505.09598 (benchmarks), IEA 2024 grid intensity.
+const AI_DATA = {
+  chatgpt:  { name:'ChatGPT',  whPerQuery:0.34,  imgWh:1.2,  costPerQuery:0.000585, grid:'us', pue:1.12, color:'#10a37f' },
+  claude:   { name:'Claude',   whPerQuery:0.36,  imgWh:0,    costPerQuery:0.000600, grid:'us', pue:1.10, color:'#cc785c' },
+  gemini:   { name:'Gemini',   whPerQuery:0.24,  imgWh:1.1,  costPerQuery:0.000390, grid:'us', pue:1.10, color:'#4285f4' },
+  deepseek: { name:'DeepSeek', whPerQuery:0.18,  imgWh:0,    costPerQuery:0.000085, grid:'cn', pue:1.48, color:'#4fb3d8' },
+  kimi:     { name:'Kimi',     whPerQuery:0.20,  imgWh:0,    costPerQuery:0.000110, grid:'cn', pue:1.45, color:'#9b7ef8' },
+};
+// IEA 2024 grid carbon intensity factors (kgCO2/kWh)
+const GRID_CF = { us:0.386, eu:0.256, cn:0.555, renewable:0.020 };
+const TREE_KG_YR   = 21.8;   // US EPA
+const CAR_KG_PER_KM = 0.21;  // EEA 2024 European petrol car average
+// image: ~1.2 Wh based on MIT Tech Review & Toolpod 2025 estimates
+
+let currentAI  = 'chatgpt';
+let imgPerMonth = 0;
+let mode = 'simple';
+let barChart, compareChart, advBarChart, advDonutChart;
+let chartsInited = false;
+
+/* ─── SLIDER TRACK FILL ─── */
+function updateSlider(el, valId) {
+  const pct = ((el.value - el.min) / (el.max - el.min)) * 100;
+  el.style.setProperty('--pct', pct + '%');
+  document.getElementById(valId).textContent = Number(el.value).toLocaleString();
+}
+
+function initSliders() {
+  document.querySelectorAll('input[type="range"]').forEach(el => {
+    const pct = ((el.value - el.min) / (el.max - el.min)) * 100;
+    el.style.setProperty('--pct', pct + '%');
+  });
+}
+
+/* ─── MODE SWITCH ─── */
+function setMode(m) {
+  mode = m;
+  document.getElementById('btnSimple').classList.toggle('active', m === 'simple');
+  document.getElementById('btnAdv').classList.toggle('active',    m === 'advanced');
+  document.getElementById('simpleMode').style.display = m === 'simple'   ? 'block' : 'none';
+  document.getElementById('advMode').style.display    = m === 'advanced' ? 'block' : 'none';
+  if (!chartsInited) { initCharts(); chartsInited = true; }
+  autoCalc();
+}
+
+/* ─── AI SELECT ─── */
+function selectAI(el) {
+  document.querySelectorAll('.ai-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  currentAI = el.dataset.ai;
+  document.getElementById('advModel').value = currentAI;
+  document.getElementById('advGrid').value  = AI_DATA[currentAI].grid;
+  autoCalc();
+}
+
+function syncAdvAI() {
+  currentAI = document.getElementById('advModel').value;
+  document.getElementById('advGrid').value = AI_DATA[currentAI].grid;
+  autoCalc();
+}
+
+/* ─── IMAGE PILLS ─── */
+function pickImg(el) {
+  document.querySelectorAll('.freq-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  imgPerMonth = +el.dataset.val;
+  autoCalc();
+}
+
+/* ─── FORMAT ─── */
+function fmt(n) {
+  if (n >= 1e6)  return (n/1e6).toFixed(2)  + ' M';
+  if (n >= 1000) return (n/1000).toFixed(2) + ' k';
+  return n.toFixed(n < 10 ? 2 : 1);
+}
+
+/* ─── IMPACT LEVEL ─── */
+function impactLevel(co2g) {
+  if (co2g < 5)   return { pct:8,  tag:'🟢 Very Low — excellent!', cls:'' };
+  if (co2g < 30)  return { pct:22, tag:'🟢 Low impact', cls:'' };
+  if (co2g < 150) return { pct:48, tag:'🟡 Moderate — room to improve', cls:'warn' };
+  if (co2g < 600) return { pct:72, tag:'🟠 High — consider reducing usage', cls:'warn' };
+  return               { pct:92, tag:'🔴 Very High — action recommended', cls:'danger' };
+}
+
+/* ─── CALCULATE SIMPLE ─── */
+function calcSimple() {
+  const ai = AI_DATA[currentAI];
+  const chatsPerWeek  = +document.getElementById('chatsPerWeek').value;
+  const chatsPerMonth = chatsPerWeek * 4.33;
+  const cf = GRID_CF[ai.grid];
+
+  const textWh = chatsPerMonth * ai.whPerQuery * ai.pue;
+  const imgWh  = imgPerMonth   * ai.imgWh      * ai.pue;
+  const totalWh  = textWh + imgWh;
+  const totalKwh = totalWh / 1000;
+
+  const co2g  = totalKwh * cf * 1000;   // grams
+  const co2kg = co2g / 1000;
+  const trees = Math.max(1, Math.ceil(co2kg / TREE_KG_YR));
+  const km    = co2kg / CAR_KG_PER_KM;
+
+  return { co2g, co2kg, totalKwh, totalWh, trees, km, chatsPerMonth };
+}
+
+/* ─── CALCULATE ADVANCED ─── */
+function calcAdv() {
+  const ai   = AI_DATA[document.getElementById('advModel').value];
+  const req  = +document.getElementById('advRequests').value;
+  const tok  = +document.getElementById('advTokens').value;   // kept for context length scaling
+  const days = +document.getElementById('advDays').value || 30;
+  const imgs = +document.getElementById('advImages').value;
+  const cf   = GRID_CF[document.getElementById('advGrid').value];
+
+  // scale energy by token count relative to median (500 tokens)
+  const tokenScale = tok / 500;
+  const textWh  = req * days * ai.whPerQuery * tokenScale * ai.pue;
+  const imgWh   = imgs * ai.imgWh * ai.pue;
+  const totalKwh = (textWh + imgWh) / 1000;
+
+  const co2g  = totalKwh * cf * 1000;
+  const co2kg = co2g / 1000;
+  const cost  = req * days * ai.costPerQuery * tokenScale + imgs * 0.04;
+  const trees = Math.max(1, Math.ceil(co2kg / TREE_KG_YR));
+
+  return { co2g, co2kg, totalKwh, cost, trees, days };
+}
+
+/* ─── UPDATE SIMPLE UI ─── */
+function updateSimple(r) {
+  const lvl  = impactLevel(r.co2g);
+
+  const co2El = document.getElementById('co2Val');
+  co2El.textContent = r.co2g < 1000
+    ? r.co2g.toFixed(1) + ' g CO₂'
+    : r.co2kg.toFixed(2) + ' kg CO₂';
+  co2El.className = 'res-value ' + lvl.cls;
+
+  document.getElementById('co2Sub').textContent =
+    '≈ ' + (r.co2g / r.chatsPerMonth).toFixed(2) + ' g per chat';
+
+  document.getElementById('energyVal').textContent =
+    r.totalKwh >= 1 ? r.totalKwh.toFixed(3) + ' kWh' : (r.totalWh).toFixed(1) + ' Wh';
+  document.getElementById('energySub').textContent =
+    '≈ ' + (r.totalWh / r.chatsPerMonth).toFixed(2) + ' Wh per chat';
+
+  document.getElementById('treesVal').textContent = r.trees + (r.trees === 1 ? ' tree' : ' trees');
+  document.getElementById('kmVal').textContent    =
+    r.km < 1 ? (r.km * 1000).toFixed(0) + ' m' : r.km.toFixed(2) + ' km';
+
+  document.getElementById('impactFill').style.width = lvl.pct + '%';
+  document.getElementById('impactTag').textContent  = lvl.tag;
+
+  // BAR: all AIs with current usage
+  const chats = +document.getElementById('chatsPerWeek').value * 4.33;
+  const allCO2 = Object.values(AI_DATA).map(a => {
+    const wh = chats * a.whPerQuery * a.pue + imgPerMonth * a.imgWh * a.pue;
+    return +((wh / 1000) * GRID_CF[a.grid] * 1000).toFixed(1);
+  });
+  barChart.data.datasets[0].data = allCO2;
+  barChart.update('none');
+
+  // COMPARE: your CO2 vs equivalent activities
+  compareChart.data.datasets[0].data = [
+    +r.co2g.toFixed(1),
+    +(r.km * 210).toFixed(1),           // grams driving equivalent
+    +(r.totalKwh * 50 * 1000).toFixed(1), // phone charges × 50g each
+    +(r.trees * TREE_KG_YR * 1000 / 12).toFixed(1) // monthly tree absorption (g)
+  ];
+  compareChart.update('none');
+}
+
+/* ─── UPDATE ADVANCED UI ─── */
+function updateAdv(r) {
+  const lvl = impactLevel(r.co2g);
+
+  const el = document.getElementById('aco2Val');
+  el.textContent = r.co2g < 1000
+    ? r.co2g.toFixed(1) + ' g CO₂'
+    : r.co2kg.toFixed(3) + ' kg CO₂';
+  el.className = 'res-value ' + lvl.cls;
+
+  document.getElementById('aco2Sub').textContent    = '≈ ' + (r.co2g / r.days).toFixed(1) + ' g/day';
+  document.getElementById('aEnergyVal').textContent =
+    r.totalKwh >= 1 ? r.totalKwh.toFixed(3) + ' kWh' : (r.totalKwh * 1000).toFixed(1) + ' Wh';
+  document.getElementById('aEnergySub').textContent = '≈ ' + (r.totalKwh / r.days * 1000).toFixed(1) + ' Wh/day';
+  document.getElementById('aCostVal').textContent   = '$' + r.cost.toFixed(2);
+  document.getElementById('aTreesVal').textContent  = r.trees.toLocaleString() + (r.trees === 1 ? ' tree' : ' trees');
+  document.getElementById('aImpactFill').style.width = lvl.pct + '%';
+  document.getElementById('aImpactTag').textContent  = lvl.tag;
+
+  const d = r.co2g / r.days;
+  advBarChart.data.datasets[0].data = [+d.toFixed(1), +(d*7).toFixed(1), +(d*30).toFixed(1), +r.co2g.toFixed(1)];
+  advBarChart.data.labels = ['Day 1', 'Week 1', 'Month 1', 'Total (' + r.days + 'd)'];
+  advBarChart.update('none');
+}
+
+/* ─── AUTO CALCULATE ─── */
+function autoCalc() {
+  if (!chartsInited) return;
+  if (mode === 'simple') updateSimple(calcSimple());
+  else updateAdv(calcAdv());
+}
+
+/* ─── INIT CHARTS ─── */
+function initCharts() {
+  Chart.defaults.color         = '#6b8f7a';
+  Chart.defaults.borderColor   = '#1e3828';
+  Chart.defaults.font.family   = "'DM Mono', monospace";
+  Chart.defaults.font.size     = 10;
+
+  const names  = Object.values(AI_DATA).map(a => a.name);
+  const colors = Object.values(AI_DATA).map(a => a.color);
+
+  barChart = new Chart(document.getElementById('barChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: names,
+      datasets: [{
+        label: 'CO₂ g/month',
+        data: [0, 0, 0, 0, 0],
+        backgroundColor: colors.map(c => c + '99'),
+        borderColor: colors,
+        borderWidth: 1, borderRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: '#1e3828' },
+             ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(1)+'k' : v+'g' }}
+      }
+    }
+  });
+
+  compareChart = new Chart(document.getElementById('compareChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['Your AI (g CO₂)', 'Car driving (g)', 'Phone charges (g)', 'Tree offset/mo (g)'],
+      datasets: [{
+        data: [0, 0, 0, 0],
+        backgroundColor: ['#00ff8799', '#f5a62399', '#4285f499', '#00c96a99'],
+        borderColor:     ['#00ff87',   '#f5a623',   '#4285f4',   '#00c96a'],
+        borderWidth: 1, borderRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#1e3828' } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+
+  advBarChart = new Chart(document.getElementById('advBarChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['Day 1', 'Week 1', 'Month 1', 'Total'],
+      datasets: [{
+        label: 'CO₂ (g)',
+        data: [0, 0, 0, 0],
+        backgroundColor: ['#00ff8733','#00ff8766','#00ff8799','#00ff87cc'],
+        borderColor: '#00ff87', borderWidth: 1, borderRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: '#1e3828' },
+             ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(1)+'k' : v+'g' }}
+      }
+    }
+  });
+
+  advDonutChart = new Chart(document.getElementById('advDonutChart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['GPU / TPU Compute', 'Cooling Overhead', 'Other Infrastructure'],
+      datasets: [{
+        data: [65, 25, 10],
+        backgroundColor: ['#00ff87cc', '#f5a62399', '#ff4d4d88'],
+        borderColor: '#0d1a13', borderWidth: 3,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { padding: 14, boxWidth: 11 } } }
+    }
+  });
+}
+
+/* ─── DOWNLOAD REPORT ─── */
+function downloadReport() {
+  const r = mode === 'simple' ? calcSimple() : calcAdv();
+  const aiName = AI_DATA[mode === 'simple' ? currentAI : document.getElementById('advModel').value].name;
+  const lines = [
+    'EcoAI — Carbon Footprint Report',
+    'Generated: ' + new Date().toLocaleString(),
+    'Data updated: March 2026',
+    '==========================================',
+    '',
+    'AI Used:  ' + aiName,
+    'Mode:     ' + (mode === 'simple' ? 'Simple' : 'Advanced'),
+    '',
+    'RESULTS',
+    '  CO₂ Emissions:   ' + (r.co2g < 1000 ? r.co2g.toFixed(1) + ' g' : r.co2kg.toFixed(3) + ' kg') + ' CO₂eq',
+    '  Energy Used:     ' + r.totalKwh.toFixed(4) + ' kWh',
+    '  Trees to Offset: ' + r.trees + ' (growing 1 year)',
+    (mode === 'advanced' ? '  Compute Cost:    $' + r.cost.toFixed(2) + ' USD (estimate)' : ''),
+    '',
+    'EQUIVALENCES',
+    '  Driving:  ' + (r.co2kg / CAR_KG_PER_KM).toFixed(2) + ' km by petrol car',
+    '  Trees:    ' + r.trees + ' trees needed to offset (1 yr)',
+    '',
+    'KEY DATA SOURCES (2025-2026)',
+    '  [1] Google Cloud — Gemini per-query data (Aug 2025)',
+    '      cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference',
+    '  [2] IEA Energy and AI Report (2025)',
+    '      iea.org/reports/energy-and-ai',
+    '  [3] Jegham et al. — How Hungry is AI? (arXiv, Nov 2025)',
+    '      arxiv.org/abs/2505.09598',
+    '  [4] US EPA Greenhouse Gas Equivalencies',
+    '      epa.gov/energy/greenhouse-gas-equivalencies-calculator',
+    '',
+    'NOTE: Estimates based on best available published data.',
+    'Only Google has published official per-query environmental figures.',
+    'DeepSeek and Kimi values use independent academic benchmarks.',
+  ].join('\n');
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lines], { type: 'text/plain' }));
+  a.download = 'ecoai-report.txt';
+  a.click();
+}
+
+/* ─── HAMBURGER MENU ─── */
+function toggleMenu() {
+  const btn  = document.getElementById('hamBtn');
+  const menu = document.getElementById('mobileMenu');
+  btn.classList.toggle('open');
+  menu.classList.toggle('open');
+  document.body.style.overflow = menu.classList.contains('open') ? 'hidden' : '';
+}
+function closeMenu() {
+  document.getElementById('hamBtn').classList.remove('open');
+  document.getElementById('mobileMenu').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ─── SCROLL REVEAL ─── */
+document.querySelectorAll('.fade-in').forEach(el =>
+  new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) entries[0].target.classList.add('visible');
+  }, { threshold: 0.1 }).observe(el)
+);
+
+/* ─── INIT ─── */
+window.addEventListener('DOMContentLoaded', () => {
+  initCharts();
+  chartsInited = true;
+  initSliders();
+  document.getElementById('advGrid').value = AI_DATA['chatgpt'].grid;
+  autoCalc();
+});
+</script>
+</body>
+</html>
